@@ -5,6 +5,8 @@
   "author": {
     "name": "shenhaofang"
   },
+  "repository": "https://github.com/shenhaofang/claude-code-model-switch-plugin",
+  "homepage": "https://github.com/shenhaofang/claude-code-model-switch-plugin#readme",
   "license": "MIT",
   "keywords": ["model", "switch", "auth", "fallback", "api-key"],
   "hooks": "./hooks/hooks.json",

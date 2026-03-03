@@ -10,16 +10,40 @@
 
 ## 安装
 
-### 1. 准备配置文件
+### 方式一：通过 Marketplace 安装（推荐）
 
-将 `claude-models.json.example` 复制到 `~/.claude/claude-models.json` 并填入真实的配置：
+**第一步：添加 Marketplace**
 
-```bash
-cp claude-models.json.example ~/.claude/claude-models.json
-# 编辑 ~/.claude/claude-models.json，填入真实的 api_key 和 api_base_url
+在 Claude Code 中执行：
+
+```
+/plugin marketplace add shenhaofang/claude-code-model-switch-plugin
 ```
 
-配置文件格式：
+**第二步：安装 Plugin**
+
+```
+/plugin install model-switch@model-switch
+```
+
+**第三步：准备配置文件**
+
+将配置文件放置到 `~/.claude/claude-models.json`（参考下方格式）。
+
+---
+
+### 方式二：本地加载（开发/测试）
+
+```bash
+git clone https://github.com/shenhaofang/claude-code-model-switch-plugin.git
+claude --plugin-dir ./claude-code-model-switch-plugin
+```
+
+---
+
+### 配置文件格式
+
+创建 `~/.claude/claude-models.json`，填入你的 API 配置：
 
 ```json
 [
@@ -38,26 +62,7 @@ cp claude-models.json.example ~/.claude/claude-models.json
 ]
 ```
 
-### 2. 赋予脚本执行权限
-
-```bash
-chmod +x scripts/switch-model.sh
-chmod +x scripts/auto-switch-on-error.sh
-```
-
-### 3. 加载 Plugin
-
-**本地开发/直接使用**：
-
-```bash
-claude --plugin-dir /path/to/model-switch-plugin
-```
-
-**或安装到用户全局**（通过 Marketplace）：
-
-```bash
-/plugin install model-switch
-```
+可参考仓库中的 `claude-models.json.example`。
 
 ## 使用
 
@@ -75,20 +80,18 @@ claude --plugin-dir /path/to/model-switch-plugin
 
 ### 手动切换
 
-**方式一：Skill（在 Claude Code 内，注意当api已经失效后无法使用该方式，只能用命令行方式）**
+**在 Claude Code 内使用 Skill（注意当api已经失效后无法使用该方式，只能用命令行方式）：**
 
 ```
-/model-switch:switch           # 交互式列表
+/model-switch:switch           # 交互式列表选择
 /model-switch:switch 2         # 直接切换到序号 2
 /model-switch:switch backup    # 直接切换到名为 backup 的配置
 ```
 
-**方式二：命令行**
+**或直接运行脚本：**
 
 ```bash
-~/.claude/model-switch-plugin/scripts/switch-model.sh          # 交互模式
-~/.claude/model-switch-plugin/scripts/switch-model.sh 2        # 按序号
-~/.claude/model-switch-plugin/scripts/switch-model.sh backup   # 按名称
+~/.claude/plugins/cache/model-switch/scripts/switch-model.sh
 ```
 
 ### 查看状态

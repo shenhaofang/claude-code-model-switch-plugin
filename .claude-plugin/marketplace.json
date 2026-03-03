@@ -1,0 +1,26 @@
+{
+  "name": "model-switch",
+  "owner": {
+    "name": "shenhaofang"
+  },
+  "metadata": {
+    "description": "Automatically switch Claude Code model config on API auth errors, with interactive manual switching support."
+  },
+  "plugins": [
+    {
+      "name": "model-switch",
+      "source": {
+        "source": "github",
+        "repo": "shenhaofang/claude-code-model-switch-plugin"
+      },
+      "description": "Automatically switch Claude Code model config on API auth errors (401/403), with interactive manual switching support.",
+      "version": "1.0.0",
+      "author": {
+        "name": "shenhaofang"
+      },
+      "repository": "https://github.com/shenhaofang/claude-code-model-switch-plugin",
+      "license": "MIT",
+      "keywords": ["model", "switch", "auth", "fallback", "api-key"]
+    }
+  ]
+}

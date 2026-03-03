@@ -8,6 +8,6 @@ If $ARGUMENTS is provided, pass it directly to the script as the target config n
 Otherwise run in interactive mode.
 
 Steps:
-1. Run: `${CLAUDE_PLUGIN_ROOT}/scripts/switch-model.sh $ARGUMENTS`
+1. Run: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/switch-model.sh $ARGUMENTS`
 2. Show the output to the user.
 3. Remind the user to restart Claude Code for the change to take effect.

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "my-provider-primary",
+    "default_model": "claude-sonnet-4-6",
+    "api_key": "sk-your-primary-api-key",
+    "api_base_url": "https://api.example.com"
+  },
+  {
+    "name": "my-provider-backup",
+    "default_model": "claude-sonnet-4-6",
+    "api_key": "sk-your-backup-api-key",
+    "api_base_url": "https://api.example.com"
+  }
+]

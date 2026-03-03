@@ -1,0 +1,12 @@
+{
+  "name": "model-switch",
+  "version": "1.0.0",
+  "description": "Automatically switch Claude Code model config on API auth errors (401/403), with interactive manual switching support.",
+  "author": {
+    "name": "shenhaofang"
+  },
+  "license": "MIT",
+  "keywords": ["model", "switch", "auth", "fallback", "api-key"],
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/"
+}

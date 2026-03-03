@@ -10,8 +10,8 @@
     {
       "name": "model-switch",
       "source": {
-        "source": "github",
-        "repo": "shenhaofang/claude-code-model-switch-plugin"
+        "source": "url",
+        "url": "https://github.com/shenhaofang/claude-code-model-switch-plugin.git"
       },
       "description": "Automatically switch Claude Code model config on API auth errors (401/403), with interactive manual switching support.",
       "version": "1.0.0",

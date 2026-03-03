@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **自动切换**：检测到 API 返回 401/403 错误时，自动轮换到下一个配置，并提示重启
+- **自动切换**：检测到 API 返回 401/403 错误时，自动轮换到下一个配置
 - **手动切换**：通过 `/model-switch:switch` skill 或直接运行脚本进行交互式切换
 - **状态查看**：通过 `/model-switch:status` skill 查看当前配置和切换日志
 
@@ -75,7 +75,7 @@ claude --plugin-dir ./claude-code-model-switch-plugin
 🔄 [model-switch] 检测到 API 认证错误，已自动切换 → my-provider-backup
    API URL : https://api.example.com
    模型    : claude-sonnet-4-6
-   ⚠️  需要重启 Claude Code 后生效
+   ✓ 配置已生效
 ```
 
 ### 手动切换
@@ -124,7 +124,6 @@ API 返回 401/403
   → 读取 claude-models.json，轮换到下一个配置
   → 写入 ~/.claude/settings.json
   → 终端显示切换提示
-  → 用户重启 Claude Code 后生效
 ```
 
 ## 依赖

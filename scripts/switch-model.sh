@@ -156,7 +156,7 @@ PYEOF
     echo -e "  模型    : ${CYAN}$model${RESET}"
     echo -e "  Token   : ${CYAN}${key:0:14}...${RESET}"
     echo ""
-    echo -e "${YELLOW}提示: 重启 Claude Code 后生效。${RESET}"
+    echo -e "${GREEN}✓ 配置已生效。${RESET}"
 }
 
 # 解析用户输入 → 返回索引

@@ -107,7 +107,6 @@ _notify_user() {
     echo "🔄 [model-switch] 检测到 API 认证错误，已自动切换 → ${name}" >&2
     echo "   API URL : ${url}" >&2
     echo "   模型    : ${model}" >&2
-    echo "   ⚠️  需要重启 Claude Code 后生效" >&2
     echo "" >&2
 }
 

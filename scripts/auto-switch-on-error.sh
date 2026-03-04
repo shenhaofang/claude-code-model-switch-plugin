@@ -205,7 +205,7 @@ for line in lines[last_line:]:
         d = json.loads(line)
         if (d.get('type') == 'system'
                 and d.get('subtype') == 'api_error'
-                and d.get('error', {}).get('status') in (401, 403)):
+                and (d.get('error') or d.get('cause') or {}).get('status') in (401, 403)):
             print("YES")
             sys.exit(0)
     except Exception:

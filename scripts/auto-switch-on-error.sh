@@ -150,25 +150,39 @@ handle_stop() {
 
     # stop_hook_active 为 true 时，Claude 已在因 stop hook 继续执行中
     # 此时若冷却期未过，直接放行（让 Claude 正常停止），防止无限循环
-    local stop_hook_active
-    stop_hook_active=$(python3 -c "
-import sys, json
+    local stop_hook_active last_assistant_message transcript_path msg_has_error
+    # 同时检测 last_assistant_message 中是否含错误关键字（access_denied_error、quota、4xx 等）
+    # 每个字段单独一行，避免 read -r 按空格分割路径/消息
+    local _py_out
+    _py_out=$(python3 -c "
+import sys, json, re
 try:
     d = json.loads(sys.stdin.read())
-    print('true' if d.get('stop_hook_active') else 'false')
+    active = 'true' if d.get('stop_hook_active') else 'false'
+    msg = d.get('last_assistant_message', '').replace('\n', ' ')[:500]
+    path = d.get('transcript_path', '')
+    # 检测常见 API 错误关键字（含 access_denied_error / quota / 4xx 状态码）
+    ERROR_PAT = re.compile(
+        r'(401|403|access.denied.error|quota.exceeded|rate.limit|forbidden|unauthorized'
+        r'|invalid.*(api.?key|token)|token.*(expired|invalid|exhausted)'
+        r'|API\s+Error:\s*4\d\d)',
+        re.IGNORECASE
+    )
+    has_error = 'YES' if ERROR_PAT.search(msg) else 'NO'
+    print(active)
+    print(msg)
+    print(path)
+    print(has_error)
 except Exception:
     print('false')
-" <<< "$input")
-
-    local transcript_path
-    transcript_path=$(python3 -c "
-import sys, json
-try:
-    d = json.loads(sys.stdin.read())
-    print(d.get('transcript_path', ''))
-except Exception:
     print('')
+    print('')
+    print('NO')
 " <<< "$input")
+    stop_hook_active=$(echo "$_py_out" | sed -n '1p')
+    last_assistant_message=$(echo "$_py_out" | sed -n '2p')
+    transcript_path=$(echo "$_py_out" | sed -n '3p')
+    msg_has_error=$(echo "$_py_out" | sed -n '4p')
 
     if [[ -z "$transcript_path" || ! -f "$transcript_path" ]]; then
         _log "Stop hook: transcript 不可用，跳过"
@@ -186,21 +200,33 @@ except Exception:
     local total_lines
     total_lines=$(wc -l < "$transcript_path")
 
-    # 扫描新增行，找 status 401/403 的 api_error
+    # 扫描新增行：结构化 status 401/403 api_error + 文本关键字双重匹配
     local found_error
     found_error=$(python3 - "$transcript_path" "$last_line" <<'PYEOF'
-import sys, json
+import sys, json, re
 
 transcript_path = sys.argv[1]
 last_line = int(sys.argv[2])
 
+ERROR_PAT = re.compile(
+    r'(401|403|access.denied.error|quota.exceeded|rate.limit|forbidden|unauthorized'
+    r'|invalid.*(api.?key|token)|token.*(expired|invalid|exhausted)'
+    r'|API\s+Error:\s*4\d\d)',
+    re.IGNORECASE
+)
+
 with open(transcript_path, 'r', encoding='utf-8') as f:
     lines = f.readlines()
 
-for line in lines[last_line:]:
-    line = line.strip()
+for raw in lines[last_line:]:
+    line = raw.strip()
     if not line:
         continue
+    # 先做文本匹配（覆盖非结构化错误）
+    if ERROR_PAT.search(line):
+        print("YES")
+        sys.exit(0)
+    # 再做结构化匹配（兼容 status 字段）
     try:
         d = json.loads(line)
         if (d.get('type') == 'system'
@@ -222,11 +248,17 @@ PYEOF
     fi
     echo "${state_key}=${total_lines}" >> "$STATE_FILE"
 
+    # last_assistant_message 文本匹配命中时也触发切换
+    if [[ "$found_error" != "YES" && "$msg_has_error" == "YES" ]]; then
+        _log "Stop hook: last_assistant_message 检测到错误关键字，触发自动切换"
+        found_error="YES"
+    fi
+
     if [[ "$found_error" != "YES" ]]; then
         return
     fi
 
-    _log "Stop hook: transcript 检测到 401/403 api_error，触发自动切换"
+    _log "Stop hook: 检测到 API 错误（transcript 或 last_assistant_message），触发自动切换"
 
     # 冷却检查：防止所有配置都不可用时无限循环
     if ! _check_cooldown; then

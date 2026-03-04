@@ -1,10 +1,12 @@
 # model-switch — Claude Code Plugin
 
-自动在 API 认证失败（401/403）时切换模型配置，并提供交互式手动切换功能。
+自动在 API 认证失败（401/403）时切换模型配置，**自动恢复被中断的任务**，并提供交互式手动切换功能。
 
 ## 功能
 
 - **自动切换**：检测到 API 返回 401/403 错误时，自动轮换到下一个配置
+- **自动恢复**：切换模型后自动向 Claude 发送继续指令，无需手动干预即可恢复中断的任务
+- **冷却保护**：防止所有模型都不可用时无限循环切换（默认 60 秒冷却）
 - **手动切换**：通过 `/model-switch:switch` skill 或直接运行脚本进行交互式切换
 - **状态查看**：通过 `/model-switch:status` skill 查看当前配置和切换日志
 
@@ -69,13 +71,13 @@ claude --plugin-dir ./claude-code-model-switch-plugin
 ### 自动切换（无需操作）
 
 安装后，每次 Claude Code 回复结束时（Stop hook）会自动扫描 transcript，
-若发现 401/403 错误，立即轮换到配置文件中的下一个配置，并在终端提示：
+若发现 401/403 错误，立即轮换到配置文件中的下一个配置，等待数秒后自动发送继续指令恢复任务：
 
 ```
 🔄 [model-switch] 检测到 API 认证错误，已自动切换 → my-provider-backup
    API URL : https://api.example.com
    模型    : claude-sonnet-4-6
-   ✓ 配置已生效
+   ✓ 配置已生效，任务自动恢复中...
 ```
 
 ### 手动切换
@@ -104,6 +106,7 @@ claude --plugin-dir ./claude-code-model-switch-plugin
 
 - 切换日志：`~/.claude/model-switch.log`（最多保留 200 行）
 - 状态文件：`~/.claude/model-switch.state`（记录已扫描的 transcript 行数，可安全删除）
+- 冷却时间戳：`~/.claude/model-switch.last`（记录上次切换时间，可安全删除）
 
 ## 配置文件路径
 
@@ -121,10 +124,21 @@ API 返回 401/403
   → Claude 回复结束，触发 Stop hook
   → auto-switch-on-error.sh 扫描 transcript 新增行
   → 检测到 status 401/403
+  → 冷却检查（防止无限循环切换）
   → 读取 claude-models.json，轮换到下一个配置
   → 写入 ~/.claude/settings.json
-  → 终端显示切换提示
+  → 终端显示切换提示（stderr）
+  → 等待数秒后向 stdout 输出继续指令
+  → Claude Code 收到指令，自动恢复中断的任务
 ```
+
+## 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `CLAUDE_MODELS_FILE` | 模型配置文件路径 | `~/.claude/claude-models.json` |
+| `MODEL_SWITCH_COOLDOWN` | 切换冷却时间（秒） | `60` |
+| `MODEL_SWITCH_RESUME_DELAY` | 切换后等待恢复延迟（秒） | `3` |
 
 ## 依赖
 

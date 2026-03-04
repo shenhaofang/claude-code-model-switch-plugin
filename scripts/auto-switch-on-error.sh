@@ -22,13 +22,12 @@ SETTINGS_FILE="$HOME/.claude/settings.json"
 LOG_FILE="$HOME/.claude/model-switch.log"
 STATE_FILE="$HOME/.claude/model-switch.state"
 LAST_SWITCH_FILE="$HOME/.claude/model-switch.last"
+# 切换后待恢复标记文件：记录切换后的配置名，idle_prompt 时读取并输出恢复指令
+PENDING_RESUME_FILE="$HOME/.claude/model-switch.resume"
 
 # 冷却时间（秒），防止所有模型都不可用时无限循环切换
 # 可通过环境变量 MODEL_SWITCH_COOLDOWN 覆盖
 COOLDOWN_SECONDS="${MODEL_SWITCH_COOLDOWN:-60}"
-
-# 切换后等待秒数，确保 settings.json 变更被 Claude Code 加载
-RESUME_DELAY="${MODEL_SWITCH_RESUME_DELAY:-3}"
 
 # 配置文件查找
 if [[ -n "${CLAUDE_MODELS_FILE:-}" && -f "$CLAUDE_MODELS_FILE" ]]; then
@@ -137,17 +136,29 @@ _update_cooldown() {
     date +%s > "$LAST_SWITCH_FILE"
 }
 
-# 向 stdout 输出继续执行指令
-# Stop hook 的 stdout 输出会作为用户消息触发 Claude 继续执行
+# Stop hook 输出 {"decision":"block","reason":"..."} 阻止 Claude 停止并触发继续执行
+# 参考: https://docs.anthropic.com/en/docs/claude-code/hooks#stop-decision-control
 _request_resume() {
     local name="$1"
-    sleep "$RESUME_DELAY"
-    echo "任务异常中断（API 错误，已自动切换到备用模型配置「${name}」），请继续执行之前未完成的任务。"
+    local reason="API 认证错误，已自动切换到备用模型配置「${name}」，请继续执行被中断的任务。"
+    python3 -c "import json, sys; print(json.dumps({'decision': 'block', 'reason': sys.argv[1]}))" "$reason"
 }
 
 # ── Stop hook：扫描 transcript 中新出现的 401/403 错误 ──────────────────────
 handle_stop() {
     local input="$1"
+
+    # stop_hook_active 为 true 时，Claude 已在因 stop hook 继续执行中
+    # 此时若冷却期未过，直接放行（让 Claude 正常停止），防止无限循环
+    local stop_hook_active
+    stop_hook_active=$(python3 -c "
+import sys, json
+try:
+    d = json.loads(sys.stdin.read())
+    print('true' if d.get('stop_hook_active') else 'false')
+except Exception:
+    print('false')
+" <<< "$input")
 
     local transcript_path
     transcript_path=$(python3 -c "
@@ -243,7 +254,7 @@ PYEOF
     _request_resume "$name"
 }
 
-# ── Notification hook：兜底，检测通知消息关键字 ─────────────────────────────
+# ── Notification hook：兜底检测认证错误 + idle_prompt 时恢复被中断的任务 ────
 handle_notification() {
     local input="$1"
 
@@ -267,6 +278,19 @@ except Exception:
 " <<< "$input")
 
     _log "Notification: type=$notification_type message=${message:0:100}"
+
+    # idle_prompt：Claude 正在等待用户输入，检查是否有待恢复的中断任务
+    if [[ "$notification_type" == "idle_prompt" ]]; then
+        if [[ -f "$PENDING_RESUME_FILE" ]]; then
+            local resume_name
+            resume_name=$(cat "$PENDING_RESUME_FILE" 2>/dev/null || echo "备用配置")
+            rm -f "$PENDING_RESUME_FILE"
+            _log "idle_prompt: 检测到待恢复任务，输出续接指令（配置: $resume_name）"
+            local reason="API 认证错误，已自动切换到备用模型配置「${resume_name}」，请继续执行被中断的任务。"
+            python3 -c "import json, sys; print(json.dumps({'decision': 'block', 'reason': sys.argv[1]}))" "$reason"
+        fi
+        return
+    fi
 
     if ! echo "$message" | grep -qiE \
         '(401|403|forbidden|unauthorized|authentication|invalid.*(api.?key|token)|token.*(expired|invalid|exhausted))'; then
@@ -305,6 +329,8 @@ main() {
     local input
     input=$(cat)
 
+    _log "Hook 触发, input_length=${#input}"
+
     local event
     event=$(python3 -c "
 import sys, json
@@ -318,7 +344,7 @@ except Exception:
     case "$event" in
         Stop)         handle_stop "$input" ;;
         Notification) handle_notification "$input" ;;
-        *)            _log "未知事件: $event，跳过" ;;
+        *)            _log "未知事件: ${event}, 跳过" ;;
     esac
 }
 

@@ -71,7 +71,7 @@ claude --plugin-dir ./claude-code-model-switch-plugin
 ### 自动切换（无需操作）
 
 安装后，每次 Claude Code 回复结束时（Stop hook）会自动扫描 transcript，
-若发现 401/403 错误，立即轮换到配置文件中的下一个配置，等待数秒后自动发送继续指令恢复任务：
+若发现 401/403 错误（在 API 报错重试结束后触发），轮换到配置文件中的下一个配置，并自动恢复被中断的任务：
 
 ```
 🔄 [model-switch] 检测到 API 认证错误，已自动切换 → my-provider-backup
@@ -120,16 +120,16 @@ export CLAUDE_MODELS_FILE=/path/to/your/models.json
 
 ```
 API 返回 401/403
-  → transcript 写入 api_error 记录（type: system, subtype: api_error）
-  → Claude 回复结束，触发 Stop hook
+  → Claude Code 重试直至放弃，Claude 停止回复
+  → 触发 Stop hook
   → auto-switch-on-error.sh 扫描 transcript 新增行
   → 检测到 status 401/403
   → 冷却检查（防止无限循环切换）
   → 读取 claude-models.json，轮换到下一个配置
   → 写入 ~/.claude/settings.json
   → 终端显示切换提示（stderr）
-  → 等待数秒后向 stdout 输出继续指令
-  → Claude Code 收到指令，自动恢复中断的任务
+  → Stop hook 输出 {"decision":"block","reason":"..."} 阻止停止
+  → Claude Code 将 reason 作为上下文传给 Claude，任务自动恢复
 ```
 
 ## 环境变量
@@ -138,7 +138,6 @@ API 返回 401/403
 |------|------|--------|
 | `CLAUDE_MODELS_FILE` | 模型配置文件路径 | `~/.claude/claude-models.json` |
 | `MODEL_SWITCH_COOLDOWN` | 切换冷却时间（秒） | `60` |
-| `MODEL_SWITCH_RESUME_DELAY` | 切换后等待恢复延迟（秒） | `3` |
 
 ## 依赖
 

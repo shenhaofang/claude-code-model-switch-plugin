@@ -60,9 +60,10 @@ with open(settings_file, 'r', encoding='utf-8') as f:
 env = settings.get('env', {})
 current_token = env.get('ANTHROPIC_AUTH_TOKEN', '')
 current_url   = env.get('ANTHROPIC_BASE_URL', '')
+current_model = env.get('ANTHROPIC_MODEL', '')
 
-# 第一行：当前激活的 token 和 url
-print(f"{current_token}\t{current_url}")
+# 第一行：当前激活的 token、url、model
+print(f"{current_token}\t{current_url}\t{current_model}")
 
 # 后续行：每条模型配置
 for m in models:
@@ -78,6 +79,7 @@ PYEOF
 _data=$(_read_data)
 current_token=$(echo "$_data" | head -1 | cut -f1)
 current_url=$(echo "$_data"   | head -1 | cut -f2)
+current_model=$(echo "$_data" | head -1 | cut -f3)
 
 declare -a CFG_NAMES CFG_MODELS CFG_KEYS CFG_URLS
 
@@ -110,7 +112,7 @@ print_list() {
         local model="${CFG_MODELS[$i]}"
         local key="${CFG_KEYS[$i]}"
 
-        if [[ "$key" == "$current_token" && "$url" == "$current_url" ]]; then
+        if [[ "$key" == "$current_token" && "$url" == "$current_url" && "$model" == "$current_model" ]]; then
             printf "${GREEN}%-4s  %-22s  %-32s  %-22s${RESET}  ${GREEN}● 当前使用${RESET}\n" \
                 "$num" "$name" "$url" "$model"
         else
